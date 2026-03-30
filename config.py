@@ -16,28 +16,33 @@ load_dotenv(Path(__file__).parent / ".env")
 
 def _get_key(name: str) -> str:
     """Read API key from Streamlit secrets (cloud) or .env (local)."""
-    # Try Streamlit secrets first (for cloud deployment)
     try:
         import streamlit as st
-        val = st.secrets.get(name, "")
-        if val:
-            return str(val)
+        if hasattr(st, "secrets") and name in st.secrets:
+            return str(st.secrets[name])
     except Exception:
         pass
-    # Fall back to environment variable
     return os.getenv(name, "")
 
 
-# ── API Keys ────────────────────────────────────────────────
-class APIKeys:
-    FMP: str = _get_key("FMP_API_KEY")
-    FINNHUB: str = _get_key("FINNHUB_API_KEY")
-    ALPHA_VANTAGE: str = _get_key("ALPHA_VANTAGE_API_KEY")
-    FRED: str = _get_key("FRED_API_KEY")
-    COINGECKO: str = _get_key("COINGECKO_API_KEY")
-    NEWSDATA: str = _get_key("NEWSDATA_API_KEY")
-    POLYGON: str = _get_key("POLYGON_API_KEY")
+class _APIKeysMeta(type):
+    _KEY_MAP = {
+        "FMP": "FMP_API_KEY",
+        "FINNHUB": "FINNHUB_API_KEY",
+        "ALPHA_VANTAGE": "ALPHA_VANTAGE_API_KEY",
+        "FRED": "FRED_API_KEY",
+        "COINGECKO": "COINGECKO_API_KEY",
+        "NEWSDATA": "NEWSDATA_API_KEY",
+        "POLYGON": "POLYGON_API_KEY",
+    }
 
+    def __getattr__(cls, name):
+        if name in cls._KEY_MAP:
+            return _get_key(cls._KEY_MAP[name])
+        raise AttributeError(name)
+
+
+class APIKeys(metaclass=_APIKeysMeta):
     @classmethod
     def status(cls) -> dict[str, bool]:
         return {
@@ -50,13 +55,11 @@ class APIKeys:
             "Polygon": bool(cls.POLYGON),
         }
 
-# ── Refresh Intervals (seconds) ────────────────────────────
 REFRESH_PRICES = 60
 REFRESH_NEWS = 300
 REFRESH_MACRO = 900
 REFRESH_CRYPTO = 120
 
-# ── Asset Universe ──────────────────────────────────────────
 MAJOR_INDICES = {
     "S&P 500": "^GSPC",
     "Nasdaq 100": "^NDX",
@@ -116,7 +119,6 @@ VOLATILITY = {
     "VVIX": "^VVIX",
 }
 
-# ── FRED Series IDs ─────────────────────────────────────────
 FRED_SERIES = {
     "Fed Funds Rate": "FEDFUNDS",
     "SOFR": "SOFR",
@@ -141,7 +143,6 @@ FRED_SERIES = {
     "Commercial Paper": "DTBSPCKM",
 }
 
-# ── Sector ETFs ─────────────────────────────────────────────
 SECTOR_ETFS = {
     "Technology": "XLK",
     "Healthcare": "XLV",
@@ -156,7 +157,6 @@ SECTOR_ETFS = {
     "Communication": "XLC",
 }
 
-# ── Geopolitical Keywords ───────────────────────────────────
 GEO_KEYWORDS = [
     "Taiwan strait", "Ukraine war", "Middle East escalation",
     "Iran sanctions", "China stimulus", "US fiscal cliff",
@@ -165,7 +165,6 @@ GEO_KEYWORDS = [
     "NATO expansion", "nuclear", "cyber attack", "election",
 ]
 
-# ── App Metadata ────────────────────────────────────────────
 APP_NAME = "Market Intelligence Tool"
 APP_VERSION = "1.0.0"
 APP_SUBTITLE = "Institutional Analytics Platform"
